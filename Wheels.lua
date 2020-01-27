@@ -1,21 +1,10 @@
 --- Wheels
 function init()
-    -- local displayTable = {
-    --     {0, 4, 5, 1},
-    --     {8, 12, 13, 9},
-    --     {10, 14, 15, 11},
-    --     {2, 6, 7, 3}
-    -- }
     local mode = 1
-    -- local displayIdx = 1
-    -- local arp = {0, 0, 0}
-
     local lastClock = 0
     local dt = 0.5
 
     local mdt = function() return dt / mode end
-
-    local tableLength = 8
 
     local makeArray = function(count, f)
         local array = {}
@@ -35,7 +24,7 @@ function init()
 
     local makeLoop = function(t)
         return loop(makeArray(
-            tableLength,
+            #t,
             function(i)
                 return to(
                     function() return t[i] end,
@@ -46,35 +35,7 @@ function init()
         ))
     end
 
-    local tables = makeArray(4, function(i) return makeTable(tableLength) end)
-
-    --local renderOutputs = function()
-        -- output[1].volts = arp[1]
-        -- output[2].volts = math.random() * 5.0
-        -- output[3].volts = math.random() * 5.0
-        --local dv = 5 / 16
-        --local idx = displayTable[mode][displayIdx]
-        --output[4].volts = idx * dv * 0.9 + dv / 2
-    --end
-
-    --local shift = function()
-        --local t = arp[1]
-        --arp[1] = arp[2]
-        --arp[2] = arp[3]
-        --arp[3] = t
-    --end
-
-    --local randomize = function()
-        --arp[1] = math.random() * 5.0
-    --end
-
-    --local reset = function()
-        --displayIdx = 1
-    --end
-
-    --local updateDisplay = function()
-        --displayIdx = displayIdx % 4 + 1
-    --end
+    local randomTable = makeTable(8)
 
     local printArray = function(a)
         local merged = reduceArray(
@@ -94,14 +55,15 @@ function init()
         local steps = math.floor(2 ^ (mode - 1))
         local values = makeArray(steps, function() return math.random() * 5.0 end)
 
-        printArray(tables[2])
+        printArray(randomTable)
 
-        for i = 1, tableLength do
-            local idx = math.floor((i - 1) / (tableLength / steps)) + 1
-            tables[2][i] = values[idx]
+        local randomLength = #randomTable
+        for i = 1, randomLength do
+            local idx = math.floor((i - 1) / (randomLength / steps)) + 1
+            randomTable[i] = values[idx]
         end
 
-        printArray(tables[2])
+        printArray(randomTable)
     end
 
     local clock = function()
@@ -137,7 +99,7 @@ function init()
     input[2].mode = 'none'
 
     output[1](lfo(mdt, 5, 'linear'))
-    output[2](makeLoop(tables[2]))
+    output[2](makeLoop(randomTable))
     -- output[3](makeLoop(tables[3]))
     -- output[4](makeLoop(tables[4]))
 end
