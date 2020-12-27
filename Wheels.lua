@@ -14,7 +14,7 @@ function init()
 
     local reduceArray = function(a, f)
         local result
-        for i = 1, #a do result = f(a[i], i, result) end
+        for i = 1, #a do result = f(result, a[i]) end
         return result
     end
 
@@ -40,7 +40,7 @@ function init()
     local printArray = function(a)
         local merged = reduceArray(
             a,
-            function(v, i, r)
+            function(r, v)
                 if r == nil then
                     return v
                 else

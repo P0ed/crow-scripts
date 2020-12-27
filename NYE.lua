@@ -1,63 +1,93 @@
 --- New year eve script
-local fg = function(f, g)
-	return function(x) return f(g(x)) end
-end
+
+local F = {
+	cat = function(f, g, h)
+		return h == nil
+			and function(x) return f(g(x)) end
+			or function(x) return f(g(h(x))) end
+	end,
+	equals = function(x)
+		return function(y)
+			return math.abs(x - y) < 0.02
+		end
+	end
+}
+
+local state = { 0, 1.2, 0.7, 0.9, 1.7 }
+setmetatable(state, {
+	__index = {
+		length = #state,
+		contains = function(f)
+			for i = 1, state.length do
+				if f(state[i]) then return true end
+			end
+			return false
+		end,
+		makeIdx = function(value)
+			return math.floor(value - 1) % state.length + 1
+		end
+	}
+})
+
+local setScale = (function()
+	local scales = { { 0, 2, 3, 5, 7, 9, 10 }, { 0, 3, 5, 11 } }
+	return function(scale)
+		for i = 1, 2 do output[i].scale(scales[scale] or 'none') end
+	end
+end)()
 
 function init()
-	local step = 0
-  local state = { 0, 0, 0, 0, 0 }
-	local length = #state
 	local idx = 1
+	local step = 1
 	local in2 = 0
-
-	local negativeScale = { 0, 3, 5, 11 }
-	local positiveScale = { 0, 2, 3, 5, 7, 9, 10 }
-
-	local makeIdx = function(value)
-		return math.floor(value - 1) % length + 1
-	end
-
-	for i = 1, length, 1 do state[i] = math.random() * 5.0 end
+	local lastIn2 = in2
+	local vOffset = 0
+	local idxOffset = 0
 
 	local render = function()
-		output[1].volts = in2
-		output[2].volts = state[makeIdx(idx + in2)]
-		output[3].volts = step % 4 == 0 and 5 or 0
-		output[4].volts = step % 8 == 0 and 5 or 0
+		output[1].volts = state[state.makeIdx(idx)] + vOffset
+		output[2].volts = state[state.makeIdx(idx + idxOffset)]
+		output[3].volts = (step - 1) % 4 == 0 and 5 or 0
+		output[4].volts = (step - 1) % (in2 < 2.5 and 8 or 2) == 0 and 5 or 0
+	end
+
+	local updateIn2 = function()
+		in2 = input[2].volts
+		vOffset = 2.5 - math.abs(2.5 - in2)
+		idxOffset = vOffset * 2
 	end
 
 	local nextStep = function()
-		step = (step + 1) % 64
-		idx = makeIdx(idx + 1)
+		step = step % 24 + 1
+		idx = state.makeIdx(idx + 1)
 
-		local lastIn2 = in2
-		in2 = input[2].volts
-
-		if (in2 < 0) ~= (lastIn2 < 0) then
-			output[1].scale(in2 < 0 and negativeScale or positiveScale)
-			output[2].scale(in2 < 0 and negativeScale or positiveScale)
+		if in2 > 2.5 and not state.contains(F.equals(vOffset)) then
+			state[idx] = vOffset
 		end
 
-		if in2 < 0 then
-			state[idx] = -in2
+		if (lastIn2 < 2.5) ~= (in2 < 2.5) then
+			setScale(in2 < 2.5 and 1 or 2)
 		end
+
+		lastIn2 = in2
 	end
 
   input[1]{
     mode = 'change',
    	direction = 'rising',
-    change = fg(render, nextStep)
+    change = F.cat(render, nextStep, updateIn2)
   }
 	input[2]{
-		mode = 'change',
-		threshold = 0.1,
-		hysteresis = 0.02,
-		direction = 'both',
-		change = fg(render, function() in2 = input[2].volts end)
+		mode = 'stream',
+		time = 1 / 480,
+		stream = function(v)
+			if not F.equals(v)(in2) then
+				updateIn2()
+				render()
+		 	end
+		end
 	}
 
-	output[1].scale(positiveScale)
-	output[2].scale(positiveScale)
-
+	setScale(1)
 	render()
 end
